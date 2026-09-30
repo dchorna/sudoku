@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Судоку з ШІ-помічником</title>
+    <!-- Підключаємо React та Babel через CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f9f9f9; margin-top: 30px; }
+        .board { display: inline-block; border: 3px solid #333; background: #333; margin-top: 15px; }
+        .row { display: flex; }
+        .cell {
+            width: 40px; height: 40px; text-align: center; font-size: 18px;
+            border: 1px solid #ccc; background: #fff; font-weight: bold;
+        }
+        .cell-readonly { background: #f0f0f0; color: #000; }
+        .controls { margin-top: 20px; }
+        button, select { padding: 8px 15px; margin: 0 5px; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h1>Судоку з ШІ-помічником (React CDN)</h1>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        function App() {
+            const [mode, setMode] = React.useState('classic');
+            const [level, setLevel] = React.useState('easy');
+            const [grid, setGrid] = React.useState(Array(9).fill().map(() => Array(9).fill(0)));
+            const [walls, setWalls] = React.useState([]);
+
+            // Генерація нової гри через бекенд FastAPI
+            const handleStart = async () => {
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode, level }),
+                    });
+                    const data = await response.json();
+                    setGrid(data.puzzle);
+                    setWalls(data.walls || []);
+                } catch (error) {
+                    alert('Не вдалося підключитися до бекенду! Переконайся, що сервер працює.');
+                }
+            };
+
+            // Отримання підказки від HintEngine
+            const handleHint = async () => {
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/hint', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode, grid, walls_list: walls }),
+                    });
+                    const data = await response.json();
+                    if (data.hint) {
+                        alert(`💡 Підказка (${data.hint.technique}):\n${data.hint.explanation}`);
+                    } else {
+                        alert(data.message);
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+
+            // Автоматичне розв'язання
+            const handleSolve = async () => {
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/solve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode, grid, walls_list: walls }),
+                    });
+                    const data = await response.json();
+                    if (data.solved_grid) {
+                        setGrid(data.solved_grid);
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="controls">
+                        <label>Режим: </label>
+                        <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                            <option value="classic">Класичне</option>
+                            <option value="consecutive">З перегородками</option>
+                        </select>
+
+                        <label style={{marginLeft: '10px'}}>Рівень: </label>
+                        <select value={level} onChange={(e) => setLevel(e.target.value)}>
+                            <option value="easy">Легкий</option>
+                            <option value="medium">Середній</option>
+                            <option value="hard">Складний</option>
+                        </select>
+
+                        <button onClick={handleStart} style={{background: '#4CAF50', color: 'white', border: 'none'}}>Нова гра</button>
+                    </div>
+
+                    <div className="board">
+                        {grid.map((row, rIdx) => (
+                            <div key={rIdx} className="row">
+                                {row.map((cell, cIdx) => (
+                                    <input
+                                        key={cIdx}
+                                        type="text"
+                                        maxLength="1"
+                                        className={`cell ${cell !== 0 ? 'cell-readonly' : ''}`}
+                                        value={cell === 0 ? '' : cell}
+                                        readOnly={cell !== 0}
+                                    />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="controls">
+                        <button onClick={handleHint}>Отримати підказку (ШІ)</button>
+                        <button onClick={handleSolve} style={{background: '#f44336', color: 'white', border: 'none'}}>Розв'язати повністю</button>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+
+</body>
+</html>

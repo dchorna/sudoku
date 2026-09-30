@@ -38,6 +38,7 @@ class HintEngine:
     ):
         self.board = board.copy() if isinstance(board, Board) else Board(board)
         self.walls = dict(walls) if walls else None
+        self.eliminated_candidates: set[tuple[int, int, int]] = set()
 
     def get_hint(self) -> Hint | None:
         for technique_name in self._TECHNIQUE_ORDER:
@@ -54,19 +55,26 @@ class HintEngine:
         while True:
             changed = False
             for technique_name in self._TECHNIQUE_ORDER:
-                if technique_name in applied:
-                    continue
                 if self.walls is None and technique_name in {"Wall Forced Value", "No-Wall Elimination", "Consecutive Pair", "Consecutive Chain"}:
                     continue
+                
                 hint = self._find_hint_by_name(technique_name)
                 if hint is None:
                     continue
+                
                 applied.add(technique_name)
                 changed = True
+                
                 if "place" in hint.action and len(hint.cells) == 1:
                     row, col = hint.cells[0]
                     self.board.set_value(row, col, hint.action["place"])
+                    self.eliminated_candidates = {e for e in self.eliminated_candidates if (e[0], e[1]) != (row, col)}
+                elif "eliminate" in hint.action:
+                    for (r, c), bad_vals in hint.action["eliminate"].items():
+                        for v in bad_vals:
+                            self.eliminated_candidates.add((r, c, v))
                 break
+            
             if not changed:
                 break
         return applied
@@ -96,9 +104,9 @@ class HintEngine:
 
     def _cell_candidates(self, row: int, col: int) -> list[int]:
         candidates = candidate_values(self.board, row, col, self.walls)
-        if candidates:
-            return candidates
-        return self._fallback_candidates(row, col)
+        if not candidates:
+            candidates = self._fallback_candidates(row, col)
+        return [c for c in candidates if (row, col, c) not in self.eliminated_candidates]
 
     def _fallback_candidates(self, row: int, col: int) -> list[int]:
         row_missing = {value for value in range(1, 10) if all(self.board.get_value(row, c) != value for c in range(9))}
@@ -187,7 +195,7 @@ class HintEngine:
             empty = [cell for cell in unit if self.board.get_value(*cell) == 0]
             if len(empty) < 2:
                 continue
-            values = [v for v in range(1, 10) if any(v in candidate_values(self.board, *cell, self.walls) for cell in empty)]
+            values = [v for v in range(1, 10) if any(v in self._cell_candidates(*cell) for cell in empty)]
             for combo in combinations(values, 2):
                 positions = [cell for cell in empty if set(combo).issubset(set(self._cell_candidates(*cell)))]
                 if len(positions) != 2:
@@ -288,7 +296,7 @@ class HintEngine:
             for col in range(9):
                 if self.board.get_value(row, col) != 0:
                     continue
-                candidates = candidate_values(self.board, row, col, self.walls)
+                candidates = self._cell_candidates(row, col)
                 for neighbor in Board.neighbors(row, col):
                     neighbor_value = self.board.get_value(*neighbor)
                     if neighbor_value == 0:
@@ -327,7 +335,7 @@ class HintEngine:
             for col in range(9):
                 if self.board.get_value(row, col) != 0:
                     continue
-                candidates = candidate_values(self.board, row, col, self.walls)
+                candidates = self._cell_candidates(row, col)
                 for neighbor in Board.neighbors(row, col):
                     neighbor_value = self.board.get_value(*neighbor)
                     if neighbor_value == 0:
@@ -358,8 +366,8 @@ class HintEngine:
             br, bc = b
             if self.board.get_value(ar, ac) != 0 or self.board.get_value(br, bc) != 0:
                 continue
-            left_candidates = candidate_values(self.board, ar, ac, self.walls)
-            right_candidates = candidate_values(self.board, br, bc, self.walls)
+            left_candidates = self._cell_candidates(ar, ac)
+            right_candidates = self._cell_candidates(br, bc)
             valid_pairs = [
                 (lv, rv)
                 for lv in left_candidates
@@ -398,7 +406,7 @@ class HintEngine:
                     continue
                 if not all(adjacent_wall_relation(self.walls, chain[i], chain[i + 1]) is True for i in range(2)):
                     continue
-                candidates_by_cell = [candidate_values(self.board, *cell, self.walls) for cell in chain]
+                candidates_by_cell = [self._cell_candidates(*cell) for cell in chain]
                 valid_values = []
                 for values0 in candidates_by_cell[0]:
                     for values1 in candidates_by_cell[1]:
@@ -412,7 +420,7 @@ class HintEngine:
                 elimination: dict[tuple[int, int], list[int]] = {}
                 for index, cell in enumerate(chain):
                     allowed = {seq[index] for seq in valid_values}
-                    bad = sorted(set(candidate_values(self.board, *cell, self.walls)) - allowed)
+                    bad = sorted(set(self._cell_candidates(*cell)) - allowed)
                     if bad:
                         elimination[cell] = bad
                 if elimination:
@@ -431,7 +439,7 @@ class HintEngine:
                     continue
                 if not all(adjacent_wall_relation(self.walls, chain[i], chain[i + 1]) is True for i in range(2)):
                     continue
-                candidates_by_cell = [candidate_values(self.board, *cell, self.walls) for cell in chain]
+                candidates_by_cell = [self._cell_candidates(*cell) for cell in chain]
                 valid_values = []
                 for values0 in candidates_by_cell[0]:
                     for values1 in candidates_by_cell[1]:
@@ -445,7 +453,7 @@ class HintEngine:
                 elimination: dict[tuple[int, int], list[int]] = {}
                 for index, cell in enumerate(chain):
                     allowed = {seq[index] for seq in valid_values}
-                    bad = sorted(set(candidate_values(self.board, *cell, self.walls)) - allowed)
+                    bad = sorted(set(self._cell_candidates(*cell)) - allowed)
                     if bad:
                         elimination[cell] = bad
                 if elimination:
