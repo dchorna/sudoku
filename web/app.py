@@ -5,7 +5,7 @@ import hashlib
 import secrets
 import pathlib
 from typing import Literal, Optional
-
+import os
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -37,10 +37,14 @@ init_db()
 
 # --- Токени входу (підписані HMAC, переживають перезапуск сервера) ---
 
-_KEY_FILE = pathlib.Path(__file__).resolve().parent / ".secret_key"
-if not _KEY_FILE.exists():
-    _KEY_FILE.write_text(secrets.token_hex(32))
-SECRET_KEY = _KEY_FILE.read_text().strip().encode()
+_env_key = os.environ.get("SECRET_KEY")
+if _env_key:
+    SECRET_KEY = _env_key.encode()
+else:  # локальний запуск
+    _KEY_FILE = pathlib.Path(__file__).resolve().parent / ".secret_key"
+    if not _KEY_FILE.exists():
+        _KEY_FILE.write_text(secrets.token_hex(32))
+    SECRET_KEY = _KEY_FILE.read_text().strip().encode()
 
 
 def make_token(user_id: int) -> str:
@@ -276,3 +280,7 @@ FRONTEND_FILE = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "i
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(FRONTEND_FILE)
+
+@app.api_route("/health", methods=["GET", "HEAD"], include_in_schema=False)
+def health():
+    return {"status": "ok"}

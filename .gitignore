@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+.pytest_cache/
+sudoku_app.db
+web/.secret_key
