@@ -1,132 +1,509 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Судоку з ШІ-помічником</title>
-    <!-- Підключаємо React та Babel через CDN -->
+    <title>Sudoku</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f9f9f9; margin-top: 30px; }
-        .board { display: inline-block; border: 3px solid #333; background: #333; margin-top: 15px; }
-        .row { display: flex; }
-        .cell {
-            width: 40px; height: 40px; text-align: center; font-size: 18px;
-            border: 1px solid #ccc; background: #fff; font-weight: bold;
-        }
-        .cell-readonly { background: #f0f0f0; color: #000; }
-        .controls { margin-top: 20px; }
-        button, select { padding: 8px 15px; margin: 0 5px; font-size: 14px; cursor: pointer; }
+        :root { --sage:#BFCC94; --porcelain:#F0F4EF; --pink:#E6AACE; --ink:#0D1821; }
+        * { box-sizing: border-box; }
+        body { margin:0; min-height:100vh; padding:28px 12px; text-align:center; color:var(--ink); font-family:Montserrat,-apple-system,"Segoe UI",sans-serif;
+            background: radial-gradient(circle at 10% 12%, rgba(230,170,206,.16), transparent 34%),
+                        radial-gradient(circle at 92% 90%, rgba(191,204,148,.20), transparent 36%), #fff; background-attachment: fixed; }
+        .topbar { display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:18px; }
+        h1, .hello { font-size:26px; font-weight:600; margin:0; letter-spacing:-.3px; }
+        .hello { font-size:18px; font-weight:400; border-bottom:3px solid var(--sage); padding-bottom:2px; }
+
+        /* Login page */
+        .auth-page { position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; overflow:auto;
+            background:linear-gradient(180deg,#E6AACE 0%,#D9C8B8 50%,#BFCC94 100%); }
+        .auth-box { width:min(400px,88vw); padding:20px 0; }
+        .auth-avatar { width:64px; height:64px; margin-bottom:6px; }
+        .auth-title { font-size:46px; font-weight:300; letter-spacing:.14em; color:#fff; margin-bottom:34px; }
+        .field { display:flex; align-items:center; gap:18px; border-bottom:1.5px solid var(--ink); padding:10px 2px; margin-bottom:26px; }
+        .field svg { width:22px; height:22px; flex:none; }
+        .field input { flex:1; border:none; background:transparent; outline:none; font:inherit; font-size:16px; color:var(--ink); letter-spacing:.04em; }
+        .field input::placeholder { color:rgba(13,24,33,.5); }
+        .auth-btn { display:block; width:100%; margin:14px 0 0; padding:16px; border:none; border-radius:6px; background:var(--ink); color:#fff;
+            font-weight:600; letter-spacing:.2em; font-size:14px; }
+        .auth-btn:hover:not(:disabled) { background:#1d2e3d; }
+        .auth-link { background:none !important; border:none !important; margin-top:14px; font-style:italic; font-size:14px; color:var(--ink); text-decoration:underline; }
+        .error { color:#7a1f5a; margin-top:12px; font-size:14px; background:rgba(255,255,255,.55); padding:8px 12px; border-radius:10px; }
+
+        /* Panels */
+        .menu, .hintbox { background:rgba(255,255,255,.5); -webkit-backdrop-filter:blur(26px) saturate(150%); backdrop-filter:blur(26px) saturate(150%);
+            border:1px solid rgba(13,24,33,.08); box-shadow:0 8px 30px rgba(13,24,33,.07), inset 0 1px 0 rgba(255,255,255,.9); }
+        .menu { display:inline-block; width:min(660px,94vw); padding:34px 36px; border-radius:30px; }
+        .menu h3 { margin:26px 0 12px; font-size:12px; font-weight:600; opacity:.5; text-transform:uppercase; letter-spacing:.12em; }
+        .menu h3:first-child { margin-top:0; }
+        .rec { width:100%; border-collapse:collapse; font-size:14px; }
+        .rec th, .rec td { padding:10px 6px; border-bottom:1px solid rgba(13,24,33,.08); text-align:center; }
+        .rec th { font-weight:400; opacity:.5; }
+        .label { font-size:13px; opacity:.6; margin:12px 0 6px; }
+        .progress { margin-top:12px; font-size:13px; opacity:.55; }
+
+        /* Buttons */
+        button { font:inherit; font-size:15px; padding:10px 22px; margin:4px; border-radius:999px; cursor:pointer; transition:.15s; color:var(--ink);
+            background:rgba(255,255,255,.55); border:1px solid rgba(13,24,33,.14); }
+        button:hover:not(:disabled) { background:#fff; border-color:rgba(13,24,33,.3); }
+        button:disabled { opacity:.35; cursor:not-allowed; }
+        .primary, .choice button.active { background:var(--sage); border-color:transparent; font-weight:600; }
+        .primary:hover:not(:disabled) { background:#aebd7c; }
+        .big { width:100%; margin:22px 0 0; padding:16px; font-size:17px; }
+        .danger { background:rgba(230,170,206,.35); border-color:rgba(230,170,206,.9); }
+        .choice { display:flex; gap:10px; }
+        .choice button { flex:1; margin:0; }
+        .logout { margin-top:22px; }
+
+        /* Game */
+        .meta { font-size:14px; opacity:.6; }
+        .stats { display:flex; gap:22px; justify-content:center; margin:6px 0 4px; font-size:15px; font-variant-numeric:tabular-nums; }
+        .board { display:inline-block; padding:8px; border-radius:26px; margin-top:12px; background:rgba(255,255,255,.55);
+            -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); border:1px solid rgba(13,24,33,.1);
+            box-shadow:0 10px 34px rgba(13,24,33,.09), inset 0 1px 0 #fff; }
+        .row { display:flex; }
+        .cell { width:44px; height:44px; padding:0; text-align:center; font-size:20px; font-weight:400; font-family:inherit; outline:none; caret-color:transparent;
+            color:#5f7330; background:transparent; border:1px solid rgba(13,24,33,.12); border-radius:0; cursor:pointer; }
+        .row:first-child .cell:first-child { border-top-left-radius:16px; } .row:first-child .cell:last-child { border-top-right-radius:16px; }
+        .row:last-child .cell:first-child { border-bottom-left-radius:16px; } .row:last-child .cell:last-child { border-bottom-right-radius:16px; }
+        .cell-given { color:var(--ink); font-weight:700; cursor:default; }
+        .cell-peer { background:rgba(191,204,148,.35); }
+        .cell-selected { background:var(--sage) !important; color:var(--ink); }
+        .cell-conflict { background:rgba(230,170,206,.9) !important; color:var(--ink); }
+        .numpad { margin-top:14px; }
+        .numpad button { width:42px; height:42px; padding:0; margin:3px; font-size:18px; border-radius:14px; }
+        .numpad button:disabled { opacity:.2; }
+        .controls { margin-top:8px; }
+        .hintbox { max-width:440px; margin:16px auto 0; padding:14px 18px; border-radius:20px; text-align:left; font-size:15px; }
+        .win { margin-top:16px; font-size:19px; font-weight:600; color:#5f7330; }
+        .note { margin-top:16px; font-size:16px; font-weight:600; color:#a0407f; }
     </style>
 </head>
 <body>
 
-    <h1>Судоку з ШІ-помічником (React CDN)</h1>
-
     <div id="root"></div>
 
     <script type="text/babel">
-        function App() {
+        // If the page is opened via server — relative paths; if as a file — full address
+        const API = window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
+        const TOKEN_KEY = 'sudoku_token';
+        const emptyGrid = () => Array(9).fill().map(() => Array(9).fill(0));
+        const key = (r1, c1, r2, c2) => `${r1},${c1}-${r2},${c2}`;
+        const LEVEL_NAMES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+
+        function makeApi(token) {
+            return async (path, body) => {
+                const res = await fetch(API + path, {
+                    method: body === undefined ? 'GET' : 'POST',
+                    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                    body: body === undefined ? undefined : JSON.stringify(body),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw { status: res.status, detail: data.detail || 'Server error' };
+                return data;
+            };
+        }
+
+        // Conflicts: classical + (in consecutive mode) adjacency violations
+        function findConflicts(grid, mode, wallMap) {
+            const bad = new Set();
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const v = grid[r][c];
+                    if (!v) continue;
+                    for (let i = 0; i < 9; i++) {
+                        if (i !== c && grid[r][i] === v) bad.add(`${r},${c}`);
+                        if (i !== r && grid[i][c] === v) bad.add(`${r},${c}`);
+                    }
+                    const br = r - (r % 3), bc = c - (c % 3);
+                    for (let rr = br; rr < br + 3; rr++)
+                        for (let cc = bc; cc < bc + 3; cc++)
+                            if ((rr !== r || cc !== c) && grid[rr][cc] === v) bad.add(`${r},${c}`);
+
+                    if (mode === 'consecutive') {
+                        for (const [dr, dc] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+                            const nr = r + dr, nc = c + dc;
+                            if (nr < 0 || nr > 8 || nc < 0 || nc > 8 || !grid[nr][nc]) continue;
+                            const isWall = wallMap.get(key(r, c, nr, nc));
+                            if (isWall === undefined) continue;
+                            const diff = Math.abs(v - grid[nr][nc]);
+                            if ((isWall && diff !== 1) || (!isWall && diff === 1)) bad.add(`${r},${c}`);
+                        }
+                    }
+                }
+            }
+            return bad;
+        }
+
+        function Header({ hello }) {
+            return (
+                <div className="topbar">
+                    <h1>Sudoku</h1>
+                    {hello && <span className="hello">Hello, {hello}</span>}
+                </div>
+            );
+        }
+
+        // ---------- Login / Registration Screen ----------
+        function AuthScreen({ onAuth }) {
+            const [username, setUsername] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [error, setError] = React.useState('');
+            const [busy, setBusy] = React.useState(false);
+
+            const submit = async (kind) => {
+                setError(''); setBusy(true);
+                try {
+                    const data = await makeApi(null)(`/api/${kind}`, { username, password });
+                    onAuth(data.token, data.progress);
+                } catch (e) {
+                    setError(e.detail || 'Failed to connect to the server.');
+                } finally { setBusy(false); }
+            };
+
+            return (
+                <div className="auth-page">
+                    <div className="auth-box">
+                        <svg className="auth-avatar" viewBox="0 0 64 64" fill="none" stroke="#fff" strokeWidth="3">
+                            <circle cx="32" cy="21" r="11" /><path d="M10 58c0-13 10-21 22-21s22 8 22 21z" />
+                        </svg>
+                        <div className="auth-title">Login</div>
+                        <label className="field">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#0D1821" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-5 4-7 8-7s8 2 8 7z" /></svg>
+                            <input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
+                        </label>
+                        <label className="field">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#0D1821" strokeWidth="2"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                            <input type="password" placeholder="Password" value={password}
+                                   onChange={e => setPassword(e.target.value)}
+                                   onKeyDown={e => e.key === 'Enter' && submit('login')} />
+                        </label>
+                        <button className="auth-btn" disabled={busy} onClick={() => submit('login')}>LOGIN</button>
+                        <button className="auth-link" disabled={busy} onClick={() => submit('register')}>Register</button>
+                        {error && <div className="error">{error}</div>}
+                    </div>
+                </div>
+            );
+        }
+
+        const fmtTime = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+        const MODE_NAMES = { classic: 'Classic', consecutive: 'Consecutive' };
+
+        // ---------- Menu: records + game selection ----------
+        function Menu({ progress, onStart, onLogout }) {
             const [mode, setMode] = React.useState('classic');
             const [level, setLevel] = React.useState('easy');
-            const [grid, setGrid] = React.useState(Array(9).fill().map(() => Array(9).fill(0)));
-            const [walls, setWalls] = React.useState([]);
+            const [busy, setBusy] = React.useState(false);
+            const available = progress.available[mode];
+            const wins = progress.wins[mode];
 
-            // Генерація нової гри через бекенд FastAPI
-            const handleStart = async () => {
-                try {
-                    const response = await fetch('http://127.0.0.1:8000/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mode, level }),
-                    });
-                    const data = await response.json();
-                    setGrid(data.puzzle);
-                    setWalls(data.walls || []);
-                } catch (error) {
-                    alert('Не вдалося підключитися до бекенду! Переконайся, що сервер працює.');
-                }
-            };
+            React.useEffect(() => {
+                if (!available.includes(level)) setLevel('easy');
+            }, [mode, progress]);
 
-            // Отримання підказки від HintEngine
-            const handleHint = async () => {
-                try {
-                    const response = await fetch('http://127.0.0.1:8000/api/hint', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mode, grid, walls_list: walls }),
-                    });
-                    const data = await response.json();
-                    if (data.hint) {
-                        alert(`💡 Підказка (${data.hint.technique}):\n${data.hint.explanation}`);
-                    } else {
-                        alert(data.message);
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
-            };
+            const go = async () => { setBusy(true); await onStart(mode, level); setBusy(false); };
 
-            // Автоматичне розв'язання
-            const handleSolve = async () => {
-                try {
-                    const response = await fetch('http://127.0.0.1:8000/api/solve', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mode, grid, walls_list: walls }),
-                    });
-                    const data = await response.json();
-                    if (data.solved_grid) {
-                        setGrid(data.solved_grid);
-                    }
-                } catch (error) {
-                    console.error(error);
-                }
+            const recCell = (m) => {
+                const r = progress.records[m];
+                return (
+                    <tr key={m}>
+                        <td><b>{MODE_NAMES[m]}</b></td>
+                        <td>{r.mine !== null ? fmtTime(r.mine) : '—'}</td>
+                        <td>{r.best ? `${fmtTime(r.best.seconds)} (${r.best.username})` : '—'}</td>
+                    </tr>
+                );
             };
 
             return (
                 <div>
-                    <div className="controls">
-                        <label>Режим: </label>
-                        <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                            <option value="classic">Класичне</option>
-                            <option value="consecutive">З перегородками</option>
-                        </select>
+                  <Header hello={progress.username} />
+                  <div className="menu">
+                    <h3>Records</h3>
+                    <table className="rec">
+                        <thead><tr><th>Sudoku Type</th><th>Your Best</th><th>Global Best</th></tr></thead>
+                        <tbody>{['classic', 'consecutive'].map(recCell)}</tbody>
+                    </table>
 
-                        <label style={{marginLeft: '10px'}}>Рівень: </label>
-                        <select value={level} onChange={(e) => setLevel(e.target.value)}>
-                            <option value="easy">Легкий</option>
-                            <option value="medium">Середній</option>
-                            <option value="hard">Складний</option>
-                        </select>
+                    <h3>New Game</h3>
+                    <div className="label">Sudoku Type</div>
+                    <div className="choice">
+                        {Object.entries(MODE_NAMES).map(([m, name]) => (
+                            <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)}>{name}</button>
+                        ))}
+                    </div>
 
-                        <button onClick={handleStart} style={{background: '#4CAF50', color: 'white', border: 'none'}}>Нова гра</button>
+                    <div className="label">Level</div>
+                    <div className="choice">
+                        {['easy', 'medium', 'hard'].map(l => (
+                            <button key={l} disabled={!available.includes(l)}
+                                    className={level === l ? 'active' : ''} onClick={() => setLevel(l)}>
+                                {available.includes(l) ? '' : '🔒 '}{LEVEL_NAMES[l]}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="progress">
+                        To next level: easy {wins.easy}/5 · medium {wins.medium}/10
+                    </div>
+
+                    <button disabled={busy} onClick={go} className="primary big">
+                        {busy ? 'Generating…' : 'Start Game'}
+                    </button>
+                  </div>
+                  <div><button className="logout" onClick={onLogout}>Log out</button></div>
+                </div>
+            );
+        }
+
+        // ---------- Game Screen ----------
+        function Game({ api, progress, setProgress, onLogout, onMenu, onRestart, initial }) {
+            const { mode: gameMode, level: gameLevel, hintLimit, maxMistakes } = initial;
+            const [grid, setGrid] = React.useState(initial.puzzle);
+            const [given] = React.useState(initial.puzzle.map(row => row.map(v => v !== 0)));
+            const [walls] = React.useState(initial.walls || []);
+            const [sel, setSel] = React.useState(null);
+            const [seconds, setSeconds] = React.useState(0);
+            const [running, setRunning] = React.useState(true);
+            const [hints, setHints] = React.useState(0);
+            const [result, setResult] = React.useState(null); // { ok, text }
+            const [finished, setFinished] = React.useState(false);
+            const [hintText, setHintText] = React.useState('');
+            const [mistakes, setMistakes] = React.useState(0);
+            const [wrong, setWrong] = React.useState({});
+
+            const wallMap = React.useMemo(() => {
+                const m = new Map();
+                walls.forEach(w => {
+                    m.set(key(w.a[0], w.a[1], w.b[0], w.b[1]), w.is_wall);
+                    m.set(key(w.b[0], w.b[1], w.a[0], w.a[1]), w.is_wall);
+                });
+                return m;
+            }, [walls]);
+
+            const conflicts = React.useMemo(() => findConflicts(grid, gameMode, wallMap), [grid, gameMode, wallMap]);
+            const digitCounts = React.useMemo(() => {
+                const cnt = Array(10).fill(0);
+                grid.forEach(row => row.forEach(v => { if (v) cnt[v]++; }));
+                return cnt;
+            }, [grid]);
+            const isFull = grid.every(row => row.every(v => v !== 0));
+
+            React.useEffect(() => {
+                if (!running) return;
+                const id = setInterval(() => setSeconds(s => s + 1), 1000);
+                return () => clearInterval(id);
+            }, [running]);
+
+            // Victory: board full, no conflicts -> server checks, measures time, and records
+            React.useEffect(() => {
+                if (!running || finished || !isFull || conflicts.size > 0) return;
+                setRunning(false);
+                setFinished(true);
+                api('/api/complete', { mode: gameMode, grid, walls_list: walls })
+                    .then(data => {
+                        setProgress(data.progress);
+                        if (data.counted) {
+                            setSeconds(data.seconds);
+                            setResult({ ok: true, text: `🎉 Congratulations! Solved in ${fmtTime(data.seconds)}.` + (data.new_record ? ' 🏆 New personal best!' : '') });
+                        } else setResult({ ok: false, text: data.message });
+                    })
+                    .catch(e => setResult({ ok: false, text: e.detail || 'Failed to save result.' }));
+            }, [isFull, conflicts, running, finished]);
+
+            const setValue = (r, c, v) => {
+                if (given[r][c] || finished || grid[r][c] === v) return;
+                setGrid(g => g.map((row, i) => i !== r ? row : row.map((x, j) => j === c ? v : x)));
+                setWrong(w => { const n = { ...w }; delete n[`${r},${c}`]; return n; });
+                if (v !== 0) {
+                    // Server checks digit against solution and maintains error counter
+                    api('/api/move', { r, c, v }).then(data => {
+                        if (data.correct) return;
+                        setMistakes(data.mistakes);
+                        setWrong(w => ({ ...w, [`${r},${c}`]: true }));
+                        if (data.lost) {
+                            setRunning(false); setFinished(true);
+                            setResult({ ok: false, text: `😔 You lost: ${maxMistakes} mistakes. Try a new game.` });
+                        }
+                    }).catch(() => {});
+                }
+            };
+
+            const moveSel = (r, c, dr, dc) => {
+                const nr = Math.min(8, Math.max(0, r + dr));
+                const nc = Math.min(8, Math.max(0, c + dc));
+                setSel([nr, nc]);
+                const el = document.getElementById(`cell-${nr}-${nc}`);
+                if (el) el.focus();
+            };
+
+            const handleKeyDown = (e, r, c) => {
+                if (/^[1-9]$/.test(e.key)) {
+                    const d = parseInt(e.key);
+                    if (digitCounts[d] < 9 || grid[r][c] === d) setValue(r, c, d);
+                    e.preventDefault();
+                }
+                else if (['Backspace', 'Delete', '0'].includes(e.key)) { setValue(r, c, 0); e.preventDefault(); }
+                else if (e.key === 'ArrowUp') { moveSel(r, c, -1, 0); e.preventDefault(); }
+                else if (e.key === 'ArrowDown') { moveSel(r, c, 1, 0); e.preventDefault(); }
+                else if (e.key === 'ArrowLeft') { moveSel(r, c, 0, -1); e.preventDefault(); }
+                else if (e.key === 'ArrowRight') { moveSel(r, c, 0, 1); e.preventDefault(); }
+                else if (e.key !== 'Tab') e.preventDefault();
+            };
+
+            const handleHint = async () => {
+                if (hints >= hintLimit) { setHintText('Hint limit reached.'); return; }
+                try {
+                    const data = await api('/api/hint', { mode: gameMode, grid, walls_list: walls });
+                    if (data.hint) {
+                        setHints(h => h + 1);
+                        setHintText(`${data.hint.technique}: ${data.hint.explanation}`);
+                    } else {
+                        setHintText(data.message);
+                        if (data.limit_reached) setHints(hintLimit);
+                    }
+                } catch (e) { if (e.status === 401) onLogout(); else setHintText(e.detail || 'Error'); }
+            };
+
+            // Solve only from initial digits so player mistakes do not interfere
+            const handleSolve = async () => {
+                const base = grid.map((row, r) => row.map((v, c) => given[r][c] ? v : 0));
+                try {
+                    const data = await api('/api/solve', { mode: gameMode, grid: base, walls_list: walls });
+                    if (data.solved_grid) {
+                        setGrid(data.solved_grid);
+                        setRunning(false); setFinished(true);
+                        setResult({ ok: false, text: "Game solved automatically — victory not counted." });
+                    }
+                } catch (e) { if (e.status === 401) onLogout(); }
+            };
+
+            const cellStyle = (r, c) => {
+                const st = {};
+                const edge = (side, r2, c2, boxBorder) => {
+                    const w = gameMode === 'consecutive' ? wallMap.get(key(r, c, r2, c2)) : undefined;
+                    if (w === true) st[side] = '5px solid #0D1821';
+                    else if (boxBorder) st[side] = '2px solid rgba(13,24,33,.45)';
+                };
+                if (c < 8) edge('borderRight', r, c + 1, c % 3 === 2);
+                if (r < 8) edge('borderBottom', r + 1, c, r % 3 === 2);
+                return st;
+            };
+
+            return (
+                <div>
+                    <Header />
+                    <div className="meta">{progress.username} · {MODE_NAMES[gameMode]} · {LEVEL_NAMES[gameLevel]}</div>
+                    <div className="stats">
+                        <span>{fmtTime(seconds)}</span>
+                        <span>Hints {hintLimit - hints}/{hintLimit}</span>
+                        <span>Mistakes {mistakes}/{maxMistakes}</span>
                     </div>
 
                     <div className="board">
                         {grid.map((row, rIdx) => (
                             <div key={rIdx} className="row">
-                                {row.map((cell, cIdx) => (
-                                    <input
-                                        key={cIdx}
-                                        type="text"
-                                        maxLength="1"
-                                        className={`cell ${cell !== 0 ? 'cell-readonly' : ''}`}
-                                        value={cell === 0 ? '' : cell}
-                                        readOnly={cell !== 0}
-                                    />
-                                ))}
+                                {row.map((cell, cIdx) => {
+                                    const isSel = sel && sel[0] === rIdx && sel[1] === cIdx;
+                                    const isPeer = sel && !isSel && (
+                                        sel[0] === rIdx || sel[1] === cIdx ||
+                                        (Math.floor(sel[0] / 3) === Math.floor(rIdx / 3) && Math.floor(sel[1] / 3) === Math.floor(cIdx / 3)));
+                                    const cls = ['cell',
+                                        given[rIdx][cIdx] ? 'cell-given' : '',
+                                        isPeer ? 'cell-peer' : '',
+                                        isSel ? 'cell-selected' : '',
+                                        (conflicts.has(`${rIdx},${cIdx}`) || wrong[`${rIdx},${cIdx}`]) ? 'cell-conflict' : ''
+                                    ].join(' ');
+                                    return (
+                                        <input
+                                            key={cIdx}
+                                            id={`cell-${rIdx}-${cIdx}`}
+                                            type="text"
+                                            inputMode="none"
+                                            maxLength="1"
+                                            className={cls}
+                                            style={cellStyle(rIdx, cIdx)}
+                                            value={cell === 0 ? '' : cell}
+                                            readOnly
+                                            onFocus={() => setSel([rIdx, cIdx])}
+                                            onClick={() => setSel([rIdx, cIdx])}
+                                            onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
+                                        />
+                                    );
+                                })}
                             </div>
                         ))}
                     </div>
 
-                    <div className="controls">
-                        <button onClick={handleHint}>Отримати підказку (ШІ)</button>
-                        <button onClick={handleSolve} style={{background: '#f44336', color: 'white', border: 'none'}}>Розв'язати повністю</button>
+                    <div className="numpad" style={{marginTop: '15px'}}>
+                        {[1,2,3,4,5,6,7,8,9].map(n => (
+                            <button key={n} disabled={digitCounts[n] >= 9}
+                                    onClick={() => sel && setValue(sel[0], sel[1], n)}>{n}</button>
+                        ))}
+                        <button onClick={() => sel && setValue(sel[0], sel[1], 0)}>⌫</button>
                     </div>
+
+                    <div className="controls">
+                        <button onClick={handleHint} disabled={finished || hints >= hintLimit}>Hint</button>
+                        <button onClick={handleSolve} disabled={finished}
+                                className="danger">Solve</button>
+                    </div>
+                    <div className="controls">
+                        <button onClick={onRestart}>New Game</button>
+                        <button onClick={onMenu}>Menu</button>
+                    </div>
+
+                    {hintText && !finished && <div className="hintbox">{hintText}</div>}
+
+                    {result && <div className={result.ok ? 'win' : 'note'}>{result.text}</div>}
                 </div>
             );
+        }
+
+        // ---------- Root Component ----------
+        function App() {
+            const [token, setToken] = React.useState(localStorage.getItem(TOKEN_KEY));
+            const [progress, setProgress] = React.useState(null);
+            const [checking, setChecking] = React.useState(!!localStorage.getItem(TOKEN_KEY));
+            const [game, setGame] = React.useState(null); // null = menu; otherwise { puzzle, walls, mode, level, id }
+
+            const logout = () => {
+                localStorage.removeItem(TOKEN_KEY);
+                setToken(null); setProgress(null); setGame(null);
+            };
+
+            // Restore session after page reload
+            React.useEffect(() => {
+                if (!token || progress) { setChecking(false); return; }
+                makeApi(token)('/api/progress')
+                    .then(p => setProgress(p))
+                    .catch(() => logout())
+                    .finally(() => setChecking(false));
+            }, []);
+
+            const handleAuth = (newToken, p) => {
+                localStorage.setItem(TOKEN_KEY, newToken);
+                setToken(newToken); setProgress(p); setGame(null);
+            };
+
+            const startGame = async (mode, level) => {
+                try {
+                    const data = await makeApi(token)('/api/generate', { mode, level });
+                    setGame({ puzzle: data.puzzle, walls: data.walls || [], mode, level, id: Date.now(),
+                              hintLimit: data.hint_limit, maxMistakes: data.max_mistakes });
+                } catch (e) {
+                    if (e.status === 401) logout();
+                    else alert(e.detail || 'Failed to connect to backend!');
+                }
+            };
+
+            if (checking) return <div>Loading…</div>;
+            if (!token || !progress) return <AuthScreen onAuth={handleAuth} />;
+            if (!game) return <Menu progress={progress} onStart={startGame} onLogout={logout} />;
+            return <Game key={game.id} api={makeApi(token)} progress={progress} setProgress={setProgress}
+                         onLogout={logout} onMenu={() => setGame(null)}
+                         onRestart={() => startGame(game.mode, game.level)} initial={game} />;
         }
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
