@@ -9,7 +9,6 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(256), nullable=False)
     
-    # Лічильники перемог для розблокування рівнів (для обох режимів і трьох рівнів)
     classic_easy_wins = Column(Integer, default=0, nullable=False)
     classic_medium_wins = Column(Integer, default=0, nullable=False)
     classic_hard_wins = Column(Integer, default=0, nullable=False)

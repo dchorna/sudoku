@@ -1,14 +1,7 @@
-"""
-Перевірка генератора/розв'язувача на відповідність ТЗ.
-Запуск з кореня проєкту (де лежить main.py):
-    python check_requirements.py            # 5 полів на кожну комбінацію режим x рівень
-    python check_requirements.py 20         # 20 полів
-Перевірка єдиності розв'язку робиться НЕЗАЛЕЖНИМ розв'язувачем з цього файлу.
-"""
 import sys
 import time
 
-RANGES = {  # п. 5 ТЗ: допустима кількість відкритих клітинок
+RANGES = { 
     ("classic", "easy"): (40, 45), ("classic", "medium"): (30, 35), ("classic", "hard"): (24, 28),
     ("consecutive", "easy"): (20, 25), ("consecutive", "medium"): (8, 14), ("consecutive", "hard"): (0, 6),
 }

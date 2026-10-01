@@ -1,4 +1,3 @@
-# web/app.py
 import time
 import hmac
 import hashlib
@@ -35,7 +34,6 @@ app.add_middleware(
 
 init_db()
 
-# --- Токени входу (підписані HMAC, переживають перезапуск сервера) ---
 
 _env_key = os.environ.get("SECRET_KEY")
 if _env_key:
@@ -80,7 +78,6 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
 HINT_LIMITS = {"easy": 3, "medium": 5, "hard": 5}
 MAX_MISTAKES = 3
 
-# Поточна гра кожного користувача (щоб перевіряти перемогу на сервері)
 games: dict[int, dict] = {}
 
 # --- Схеми ---
@@ -103,7 +100,6 @@ class BoardActionRequest(BaseModel):
     grid: list[list[int]]
     walls_list: Optional[list[dict]] = None
 
-# --- Допоміжні функції ---
 
 def _parse_walls_from_request(walls_list: list[dict] | None) -> dict | None:
     if not walls_list:
@@ -152,7 +148,6 @@ def _progress_payload(user: User, db: Session) -> dict:
         "records": {m: _records_for(user, db, m) for m in modes},
     }
 
-# --- Авторизація ---
 
 @app.post("/api/register")
 def register(req: AuthRequest, db: Session = Depends(get_db)):
@@ -181,7 +176,6 @@ def login(req: AuthRequest, db: Session = Depends(get_db)):
 def get_progress(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _progress_payload(user, db)
 
-# --- Гра ---
 
 @app.post("/api/generate")
 def generate_game(request: GenerateRequest, user: User = Depends(get_current_user)):
@@ -273,7 +267,6 @@ def complete_game(request: BoardActionRequest, user: User = Depends(get_current_
     return {"counted": True, "seconds": seconds, "new_record": new_record,
             "message": "Перемогу зараховано!", "progress": _progress_payload(user, db)}
 
-# --- Фронтенд: http://127.0.0.1:8000/ ---
 
 FRONTEND_FILE = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 

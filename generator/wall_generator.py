@@ -15,14 +15,13 @@ def compute_walls(board: Board | list[list[int]]) -> dict[tuple[tuple[int, int],
                 b = (row, col + 1)
                 is_wall = abs(board.get_value(*a) - board.get_value(*b)) == 1
                 walls[(a, b)] = is_wall
-                walls[(b, a)] = is_wall  # Додано зворотний напрямок
+                walls[(b, a)] = is_wall  
 
-            # Вертикальні перегородки
             if row + 1 < 9:
                 a = (row, col)
                 b = (row + 1, col)
                 is_wall = abs(board.get_value(*a) - board.get_value(*b)) == 1
                 walls[(a, b)] = is_wall
-                walls[(b, a)] = is_wall  # Додано зворотний напрямок
+                walls[(b, a)] = is_wall  
 
     return walls

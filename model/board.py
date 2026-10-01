@@ -131,7 +131,6 @@ def is_valid_placement(
     if value == 0:
         return True
 
-    # 1. Класичні перевірки (рядок, стовпець, квадрат)
     if board.get_value(row, col) != 0 and board.get_value(row, col) != value:
         return False
 
@@ -146,22 +145,18 @@ def is_valid_placement(
         if (r, c) != (row, col) and board.get_value(r, c) == value:
             return False
 
-    # 2. Перевірка перегородок (якщо вони передані для другого режиму)
     if walls:
         for r, c in Board.neighbors(row, col):
             neighbor_value = board.get_value(r, c)
             if neighbor_value == 0:
-                continue  # Сусід ще порожній, конфлікту поки немає
+                continue 
             
-            # Перевіряємо наявність перегородки між поточною клітинкою та сусідом
             has_wall = walls.get(((row, col), (r, c)))
             if has_wall is not None:
                 diff = abs(value - neighbor_value)
                 
-                # Якщо є перегородка, різниця має бути рівно 1
                 if has_wall and diff != 1:
                     return False
-                # Якщо перегородки немає, різниця НЕ може бути 1
                 if not has_wall and diff == 1:
                     return False
 

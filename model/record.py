@@ -10,7 +10,7 @@ class Record(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
-    mode = Column(String(20), nullable=False, index=True)   # classic / consecutive
-    level = Column(String(10), nullable=False)               # easy / medium / hard
+    mode = Column(String(20), nullable=False, index=True)   
+    level = Column(String(10), nullable=False)              
     seconds = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
